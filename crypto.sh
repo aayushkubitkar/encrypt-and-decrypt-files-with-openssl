@@ -20,22 +20,30 @@ decrypt()
 usage()
 {
 	echo -e "Usage: \n Encryption:"
-
 	echo "  ./crypto.sh -e <receiver_public_key_file> <sender_private_key_file> <plaintext_file> <encrypted_file>"
 	echo " Decryption: "
 	echo "  ./crypto.sh -d <receiver_private_key_file> <sender_public_key_file> <encrypted_file> <decrypted_file>"
+	exit 1;
 }
 
 if [[ $# -eq 5 ]]; then
   while getopts "he:d:" options; do
     case ${options} in
 	 	e) 
-	 	  encrypt $2 $3 $4 $5
+	 	  if [ -f $2 -a -f $3 -a -f $4 -a -f $5 ]; then
+	 	   encrypt $2 $3 $4 $5
+          else
+          	echo "argument passed is not a file!"
+          fi
 		  ;;
 		d) 
-	      decrypt $2 $3 $4 $5 
+	      if [ -f $2 -a -f $3 -a -f $4 -a -f $5 ]; then
+	       decrypt $2 $3 $4 $5
+	      else
+	       echo "argument passed is not a file!" 
+	      fi 
 		  ;;
-		*) 
+		h | *) 
 		  usage
 		  ;;
 	esac
