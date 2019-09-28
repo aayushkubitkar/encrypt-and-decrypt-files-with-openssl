@@ -7,6 +7,21 @@ encrypt()
 	 p_file=$3
 	 e_file=$4
 	 echo "in encrypt function $r_pub_key, $s_priv_key, $p_file, $e_file"
+	 
+	 workdir=`pwd`
+	 touch $workdir/rand.session.key
+	 openssl rand -base64 32 > $workdir/rand.session.key # generate 32 bit random session key
+
+	 touch $workdir/file.enc
+	 openssl enc -aes-256-cbc -salt -pass file:$workdir/rand.session.key -in $3 -out $workdir/file.enc -P 
+
+	 touch $workdir/session.key.enc
+	 openssl rsautl -encrypt -pubin -inkey $1 -in $workdir/rand.session.key -out $workdir/session.key.enc
+
+	 #touch $workdir/file.tar.gz
+	 tar -czvf $workdir/file.tar.gz $workdir/session.key.enc $workdir/file.enc
+
+	 openssl dgst -sha256 -sign $2 -out $4 $workdir/file.tar.gz
 
 }
 decrypt()
@@ -16,6 +31,19 @@ decrypt()
 	 e_file=$3
 	 p_file=$4
 	 echo "in decrypt function"
+	 workdir=`pwd`
+	 touch $workdir/ver_status
+	 openssl dgst -sha256 -verify $2 -signature $workdir/file.dgst $3  > ver_status
+
+	 if grep -Fq "OK" $workdir/ver_status ; then
+	  echo "verified"
+	  tar -xvf $3
+	  touch $workdir/decrypted.session.key
+      openssl rsautl -decrypt -inkey $1 -in $workdir/session.key.enc -out $workdir/decrypted.session.key
+	  openssl enc -aes-256-cbc -salt -d -in $workdir/file.enc -out $4 -pass file:$workdir/decrypted.session.key
+	 else
+	 	echo "signature not matching!"
+	 fi
 }
 usage()
 {
@@ -60,7 +88,7 @@ if [ $((OPTIND-1)) -eq 0 ]; then
 fi  
 shift "$((OPTIND -1))"
 if [ "$#" -eq 4 ]; then #checking the number of arguments 
-    if [ -f $1 -a -f $2 -a -f $3 -a -f $4 ]; then #checking if all the files passed as argument exists or not
+    if [ -f "$1" -a -f "$2" -a -f "$3" -a -f "$4" ]; then #checking if all the files passed as argument exists or not
        if [ "$operation" == "e" ]; then
        	encrypt $1 $2 $3 $4
        elif [ "$operation" == "d" ]; then
