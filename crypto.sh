@@ -9,19 +9,25 @@ encrypt()
 	 echo "in encrypt function $r_pub_key, $s_priv_key, $p_file, $e_file"
 	 
 	 workdir=`pwd`
-	 touch $workdir/rand.session.key
-	 openssl rand -base64 32 > $workdir/rand.session.key # generate 32 bit random session key
+	 touch rand.session.key
+	 openssl rand -base64 32 > rand.session.key # generate 32 bit random session key
 
-	 touch $workdir/file.enc
-	 openssl enc -aes-256-cbc -salt -pass file:$workdir/rand.session.key -in $3 -out $workdir/file.enc -P 
+	 touch file.enc
+	 openssl enc -aes-256-cbc -pass file:./rand.session.key -salt -in $3 -out file.enc 
 
-	 touch $workdir/session.key.enc
-	 openssl rsautl -encrypt -pubin -inkey $1 -in $workdir/rand.session.key -out $workdir/session.key.enc
+	 touch session.key.enc
+	 openssl rsautl -encrypt -pubin -inkey $1 -in rand.session.key -out session.key.enc
 
-	 #touch $workdir/file.tar.gz
-	 tar -czvf $workdir/file.tar.gz $workdir/session.key.enc $workdir/file.enc
+	 rm rand.session.key
 
-	 openssl dgst -sha256 -sign $2 -out $4 $workdir/file.tar.gz
+	 tar -czvf file.tar.gz session.key.enc file.enc
+	 rm session.key.enc file.enc
+
+	 touch file.dgst
+	 openssl dgst -sha256 -sign $2 -out file.dgst file.tar.gz
+
+	 tar -czvf $4 file.dgst file.tar.gz
+	 rm file.dgst file.tar.gz
 
 }
 decrypt()
@@ -31,16 +37,23 @@ decrypt()
 	 e_file=$3
 	 p_file=$4
 	 echo "in decrypt function"
-	 workdir=`pwd`
-	 touch $workdir/ver_status
-	 openssl dgst -sha256 -verify $2 -signature $workdir/file.dgst $3  > ver_status
+	 
+	 touch ver_status
+	 tar -xvf $3
+	 openssl dgst -sha256 -verify $2 -signature file.dgst file.tar.gz  > ver_status
 
-	 if grep -Fq "OK" $workdir/ver_status ; then
+	 if grep -Fq "OK" ver_status ; then
 	  echo "verified"
-	  tar -xvf $3
-	  touch $workdir/decrypted.session.key
-      openssl rsautl -decrypt -inkey $1 -in $workdir/session.key.enc -out $workdir/decrypted.session.key
-	  openssl enc -aes-256-cbc -salt -d -in $workdir/file.enc -out $4 -pass file:$workdir/decrypted.session.key
+
+	  tar -xvf file.tar.gz
+
+	  touch decrypted.session.key
+
+      openssl rsautl -decrypt -inkey $1 -in session.key.enc -out decrypted.session.key
+
+	  openssl enc -aes-256-cbc -d -pass file:./decrypted.session.key -salt -in file.enc -out $4 
+
+	  rm file.tar.gz file.dgst file.enc session.key.enc decrypted.session.key
 	 else
 	 	echo "signature not matching!"
 	 fi
@@ -88,7 +101,7 @@ if [ $((OPTIND-1)) -eq 0 ]; then
 fi  
 shift "$((OPTIND -1))"
 if [ "$#" -eq 4 ]; then #checking the number of arguments 
-    if [ -f "$1" -a -f "$2" -a -f "$3" -a -f "$4" ]; then #checking if all the files passed as argument exists or not
+    if [ -f "$1" -a -f "$2" -a -f "$3" ]; then #checking if all the files passed as argument exists or not
        if [ "$operation" == "e" ]; then
        	encrypt $1 $2 $3 $4
        elif [ "$operation" == "d" ]; then
