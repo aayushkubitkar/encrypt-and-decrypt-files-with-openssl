@@ -47,7 +47,7 @@ decrypt()
 	 #verify the digest with the original message
 	 openssl dgst -sha256 -verify $2 -signature file.dgst file.tar.gz  > ver_status
 	 #check if the file was successfullly verified
-	 if grep -Fq "OK" ver_status ; then
+	 if grep -Fiq "OK" ver_status ; then
 	  	#echo "verified"
 	  	tar -xvf file.tar.gz
 	  	touch decrypted.session.key
