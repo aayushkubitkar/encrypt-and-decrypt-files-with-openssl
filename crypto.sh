@@ -1,5 +1,6 @@
 #!/bin/bash
-
+set -e
+trap 
 encrypt()
 {
 	 r_pub_key=$1
@@ -13,7 +14,7 @@ encrypt()
 	 openssl rand -base64 32 > rand.session.key # generate 32 bit random session key
 
 	 touch file.enc
-	 openssl enc -aes-256-cbc -pass file:./rand.session.key -salt -in $3 -out file.enc 
+	 openssl enc -aes-256-cbc -A -in $3 -out file.enc -pass file:./rand.session.key -salt
 
 	 touch session.key.enc
 	 openssl rsautl -encrypt -pubin -inkey $1 -in rand.session.key -out session.key.enc
@@ -44,16 +45,11 @@ decrypt()
 
 	 if grep -Fq "OK" ver_status ; then
 	  echo "verified"
-
 	  tar -xvf file.tar.gz
-
 	  touch decrypted.session.key
-
       openssl rsautl -decrypt -inkey $1 -in session.key.enc -out decrypted.session.key
-
-	  openssl enc -aes-256-cbc -d -pass file:./decrypted.session.key -salt -in file.enc -out $4 
-
-	  rm file.tar.gz file.dgst file.enc session.key.enc decrypted.session.key
+	  openssl enc -aes-256-cbc -d -A -in file.enc -out $4 -pass file:./decrypted.session.key -salt 
+	  rm file.tar.gz file.dgst file.enc session.key.enc decrypted.session.key ver_status
 	 else
 	 	echo "signature not matching!"
 	 fi
