@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-trap 
 encrypt()
 {
 	 r_pub_key=$1
